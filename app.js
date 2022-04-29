@@ -1,10 +1,14 @@
 const url =
     "http://api.weatherstack.com/current?access_key=3d31f7d02a8a028e2e3dc073e005e9ad"
 
-const root = document.getElementById('root');
+const root = document.getElementById("root");
+const popup = document.getElementById("popup");
+const close = document.getElementById("close");
+const textInput = document.getElementById("text-input");
+const form = document.getElementById("form");
 
 let store = {
-    city: "Minsk",
+    city: "Andijon",
     temperature: 0,
     observationTime: "00:00 AM",
     isDay: "yes",
@@ -21,67 +25,107 @@ let store = {
 
 
 const fetchData = async() => {
-    const result = await fetch(`${url}&query=${store.city}`);
-    const data = await result.json();
+    try {
+        const query = localStorage.getItem("query") || store.city;
+        const result = await fetch(`${url}&query=${query}`);
+        const data = await result.json();
 
-    const {
-        current: {
-            cloudcover,
+        const {
+            current: {
+                cloudcover,
+                temperature,
+                humidity,
+                observation_time: observationTime,
+                pressure,
+                uv_index: uvIndex,
+                visibility,
+                is_day: isDay,
+                weather_descriptions: description,
+                wind_speed: windSpeed,
+            },
+            location: { name },
+        } = data;
+
+
+        store = {
+            ...store,
+            isDay,
+            city: name,
             temperature,
-            humidity,
-            observation_time: observationTime,
-            pressure,
-            uv_index: uvIndex,
-            visibility,
-            is_day: isDay,
-            weather_descriptions: description,
-            wind_speed: windSpeed,
-        },
-        location: { name },
-    } = data;
+            observationTime,
+            description: description[0],
+            properties: {
+                cloudcover: {
+                    title: "cloudcover",
+                    value: `${cloudcover}%`,
+                    icon: "cloud.png",
+                },
+                humidity: {
+                    title: "humidity",
+                    value: `${humidity}%`,
+                    icon: "humidity.png",
+                },
+                windSpeed: {
+                    title: "wind speed",
+                    value: `${windSpeed} km/h`,
+                    icon: "wind.png",
+                },
+                pressure: {
+                    title: "pressure",
+                    value: `${pressure}%`,
+                    icon: "gauge.png",
+                },
+                uvIndex: {
+                    title: "uv Index",
+                    value: `${uvIndex} / 100`,
+                    icon: "uv-index.png",
+                },
+                visibility: {
+                    title: "visibility",
+                    value: `${visibility}%`,
+                    icon: "visibility.png",
+                },
+            },
+        };
+        renderComponent();
+    } catch (error) {
+        console.log(error);
+    }
 
+};
 
-    store = {
-        ...store,
-        isDay,
-        city: name,
-        temperature,
-        observationTime,
-        description: description[0],
-        properties: {
-            cloudcover: {
-                title: "cloudcover",
-                value: `${cloudcover}%`,
-                icon: "cloud.png",
-            },
-            humidity: {
-                title: "humidity",
-                value: `${humidity}%`,
-                icon: "humidity.png",
-            },
-            windSpeed: {
-                title: "wind speed",
-                value: `${windSpeed} km/h`,
-                icon: "wind.png",
-            },
-            pressure: {
-                title: "pressure",
-                value: `${pressure} %`,
-                icon: "gauge.png",
-            },
-            uvIndex: {
-                title: "uv Index",
-                value: `${uvIndex} / 100`,
-                icon: "uv-index.png",
-            },
-            visibility: {
-                title: "visibility",
-                value: `${visibility}%`,
-                icon: "visibility.png",
-            },
-        },
-    };
-    renderComponent();
+const getImage = (description) => {
+    const value = description.toLowerCase();
+
+    switch (value) {
+        case "partly cloudly":
+            return "party.png";
+        case "cloud":
+            return "cloud.png";
+        case "fog":
+            return "fog.png";
+        case "sunny":
+            return "sunny.png";
+        case "clear":
+            return "clear.png";
+        default:
+            return "the.png"
+    }
+}
+
+const renderProperty = (properties) => {
+    return Object.values(properties)
+        .map(({ title, value, icon }) => {
+            return `<div class="property">
+              <div class="property-icon">
+                <img src="./img/icons/${icon}" alt="">
+              </div>
+              <div class="property-info">
+                <div class="property-info__value">${value}</div>
+                <div class="property-info__description">${title}</div>
+              </div>
+            </div>`;
+        }).join("");
 };
 
 const markup = () => {
@@ -99,7 +143,7 @@ const markup = () => {
                 </div>
                 <div class="city-info">
                   <div class="top-left">
-                  <img class="icon" src="./img/" alt="" />
+                  <img class="icon" src="./img/${getImage(description)}" alt="" />
                   <div class="description">${description}</div>
                 </div>
               
@@ -109,14 +153,48 @@ const markup = () => {
                 </div>
               </div>
             </div>
-          <div id="properties"></div>
+        <div id="properties">${renderProperty(properties)}</div>
         </div>`;
 };
+
+const togglePopupClass = () => {
+    popup.classList.toggle("active");
+}
+
 const renderComponent = () => {
     root.innerHTML = markup();
+
+
+    const city = document.getElementById("city");
+    city.addEventListener("click", togglePopupClass);
+
+}
+
+const togglePopupClose = () => {
+    togglePopupClass();
 }
 
 
+const handleInput = (e) => {
+    store = {
+        ...store,
+        city: e.target.value,
+    };
+}
+const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const value = store.city;
+    if (!value) return null;
+
+    localStorage.setItem("query", value);
+    fetchData();
+    togglePopupClass();
+}
+
+form.addEventListener("submit", handleSubmit)
+textInput.addEventListener("input", handleInput);
+close.addEventListener("click", togglePopupClose);
 
 
 fetchData();
