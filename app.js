@@ -1,96 +1,122 @@
 const url =
-    "https://api.openweathermap.org/data/2.5/weather?&appid=47e9a6f0593acb1eb9453646a55a6d9b"
+    "http://api.weatherstack.com/current?access_key=3d31f7d02a8a028e2e3dc073e005e9ad"
 
 const root = document.getElementById('root');
-const tempteratureUnit = '°';
-const humidityUnit = '  %';
-const pressureUnit = ' мм. рт. ст.';
-const windUnit = `' м/с';`
-let dataStore = {
-    id: "1484846",
-    city: "Andijan",
-    feelslike: 0,
-    clouds: 0,
-    temp: 0,
-    humidity: 0, // влажность
-    pressure: 0, // давление
-    visibility: 0,
+
+let store = {
+    city: "Minsk",
+    temperature: 0,
+    observationTime: "00:00 AM",
     isDay: "yes",
     description: "",
-    main: "",
-    icon: "",
-    wind: 0, // ветер
+    properties: {
+        cloudcover: {},
+        humidity: {},
+        windSpeed: {},
+        pressure: {},
+        uvIndex: {},
+        visibility: {},
+    },
+};
 
-}
-
-function isDay(data) {
-    let sunrise = data.sys.sunrise * 1000;
-    let sunset = data.sys.sunset * 1000;
-
-    let now = Date.now();
-    return (now > sunrise && now < sunset);
-}
-
-function renderDayOrNight(data) {
-    let getIsDay = isDay(data) ? 'yes' : 'no';
-    return getIsDay;
-}
 
 const fetchData = async() => {
-    const result = await fetch(`${url}&q=${dataStore.city}`);
+    const result = await fetch(`${url}&query=${store.city}`);
     const data = await result.json();
 
     const {
-        main: { feels_like: feelslike, temp, pressure, humidity, },
-        clouds,
-        dt: isDay,
-        visibility,
-        weather: [...weather] = { main: wmain, description, icon },
-        wind: { speed },
+        current: {
+            cloudcover,
+            temperature,
+            humidity,
+            observation_time: observationTime,
+            pressure,
+            uv_index: uvIndex,
+            visibility,
+            is_day: isDay,
+            weather_descriptions: description,
+            wind_speed: windSpeed,
+        },
+        location: { name },
     } = data;
 
 
     store = {
-        ...dataStore,
-        feelslike,
-        clouds,
-        temp,
-        humidity,
-        pressure,
-        visibility,
-        isDay: renderDayOrNight(data),
-        description: weather[0].description,
-        main: weather[0].wmain,
-        icon: weather[0].icon,
-        wind: speed,
-    }
-
+        ...store,
+        isDay,
+        city: name,
+        temperature,
+        observationTime,
+        description: description[0],
+        properties: {
+            cloudcover: {
+                title: "cloudcover",
+                value: `${cloudcover}%`,
+                icon: "cloud.png",
+            },
+            humidity: {
+                title: "humidity",
+                value: `${humidity}%`,
+                icon: "humidity.png",
+            },
+            windSpeed: {
+                title: "wind speed",
+                value: `${windSpeed} km/h`,
+                icon: "wind.png",
+            },
+            pressure: {
+                title: "pressure",
+                value: `${pressure} %`,
+                icon: "gauge.png",
+            },
+            uvIndex: {
+                title: "uv Index",
+                value: `${uvIndex} / 100`,
+                icon: "uv-index.png",
+            },
+            visibility: {
+                title: "visibility",
+                value: `${visibility}%`,
+                icon: "visibility.png",
+            },
+        },
+    };
     renderComponent();
 };
 
+const markup = () => {
+    const { city, description, observationTime, temperature, isDay, properties } =
+    store;
+    const containerClass = isDay === "yes" ? "is-day" : "";
+
+    return `<div class="container ${containerClass}">
+              <div class="top">
+                <div class="city">
+                  <div class="city-subtitle">Weather Today in</div>
+                    <div class="city-title" id="city">
+                    <span>${city}</span>
+                  </div>
+                </div>
+                <div class="city-info">
+                  <div class="top-left">
+                  <img class="icon" src="./img/" alt="" />
+                  <div class="description">${description}</div>
+                </div>
+              
+                <div class="top-right">
+                  <div class="city-info__subtitle">as of ${observationTime}</div>
+                  <div class="city-info__title">${temperature}°</div>
+                </div>
+              </div>
+            </div>
+          <div id="properties"></div>
+        </div>`;
+};
 const renderComponent = () => {
-    root.innerHTML = `${renderTemperature(store.temp)}`
-    console.log("temp: ", renderTemperature(store.temp));
-    console.log("pres", renderPressure(store.pressure));
-
+    root.innerHTML = markup();
 }
 
-function getValueWithUnit(value, unit) {
-    return `${value}${unit}`
-}
 
-function renderTemperature(data) {
-    const roundedTemp = data.toFixed();
-    return getValueWithUnit(roundedTemp, tempteratureUnit)
-}
 
-function convertPressure(value) {
-    return (value / 1.33).toFixed();
-}
-
-function renderPressure(data) {
-    let pressureValue = convertPressure(data);
-    return getValueWithUnit(pressureValue, pressureUnit);
-}
 
 fetchData();
